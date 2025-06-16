@@ -11,7 +11,19 @@ Bounce Master is inspired by classic volleyball games but with a twist. The play
 things interesting, obstacles fly across the screen that can alter the ball's trajectory upon collision. The game also features power-ups that provide various effects like making the
 player faster, duplicating balls, giving balls temporary anti-gravity abilities, or slowing down ball movement.
 
+![Gameplay](BounceMasterUbuntu2025-06-1600-27-18-ezgif.com-video-to-gif-converter.gif)
+
 ## Development Process
+
+One of the most facinating thing about Amazon Q was that it was able to write directly to my file systems. For example, I asked Q to apply the tags on AWS resources.
+
+![AskForTag](ezgif-6a449c78fdc80a.gif)
+
+After few seconds of thinking, Q automatically applied tags to my Cloudformation Templates
+
+![GotTag](ezgif-6e3f437078d4e4.gif)
+
+This was such a magical experience!!
 
 ### Starting with the Core Game Mechanics
 
