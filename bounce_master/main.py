@@ -27,13 +27,13 @@ clock = pygame.time.Clock()
 
 class Player:
     def __init__(self):
-        self.width = 100
+        self.width = 200
         self.height = 20
         self.x = SCREEN_WIDTH // 2 - self.width // 2
         self.y = SCREEN_HEIGHT - 50
         self.speed = 8
         self.color = BLUE
-        self.original_width = 100
+        self.original_width = 200
         self.original_speed = 8
         self.power_up_timer = 0
         self.active_power_ups = []
