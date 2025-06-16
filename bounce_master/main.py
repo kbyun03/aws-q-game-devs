@@ -16,6 +16,9 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
+PURPLE = (128, 0, 128)
+ORANGE = (255, 165, 0)
+CYAN = (0, 255, 255)
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -30,6 +33,10 @@ class Player:
         self.y = SCREEN_HEIGHT - 50
         self.speed = 8
         self.color = BLUE
+        self.original_width = 100
+        self.original_speed = 8
+        self.power_up_timer = 0
+        self.active_power_ups = []
 
     def draw(self):
         pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
@@ -46,20 +53,53 @@ class Player:
         if keys[pygame.K_RIGHT]:
             self.move("right")
 
+        # Update power-up timers
+        if self.power_up_timer > 0:
+            self.power_up_timer -= 1
+            if self.power_up_timer == 0:
+                self.reset_power_ups()
+
+    def apply_power_up(self, power_up_type):
+        self.active_power_ups.append(power_up_type)
+        self.power_up_timer = 300  # 5 seconds at 60 FPS
+
+        if power_up_type == "speed":
+            self.speed = self.original_speed * 1.5
+            self.color = YELLOW
+        elif power_up_type == "size":
+            self.width = self.original_width * 1.5
+            self.x = max(0, min(self.x, SCREEN_WIDTH - self.width))  # Keep paddle on screen
+            self.color = CYAN
+
+    def reset_power_ups(self):
+        self.speed = self.original_speed
+        self.width = self.original_width
+        self.color = BLUE
+        self.active_power_ups = []
+
 class Ball:
-    def __init__(self):
+    def __init__(self, x=None, y=None):
         self.radius = 15
-        self.x = SCREEN_WIDTH // 2
-        self.y = SCREEN_HEIGHT // 2
+        self.x = x if x is not None else SCREEN_WIDTH // 2
+        self.y = y if y is not None else SCREEN_HEIGHT // 2
         self.speed_x = random.choice([-4, -3, 3, 4])
         self.speed_y = -5
         self.gravity = 0.2
         self.color = RED
+        self.original_gravity = 0.2
+        self.power_up_timer = 0
+        self.active_power_ups = []
 
     def draw(self):
         pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
 
     def update(self):
+        # Update power-up timers
+        if self.power_up_timer > 0:
+            self.power_up_timer -= 1
+            if self.power_up_timer == 0:
+                self.reset_power_ups()
+
         # Apply gravity
         self.speed_y += self.gravity
 
@@ -99,6 +139,25 @@ class Ball:
 
     def is_out_of_bounds(self):
         return self.y > SCREEN_HEIGHT + self.radius
+
+    def apply_power_up(self, power_up_type):
+        self.active_power_ups.append(power_up_type)
+        self.power_up_timer = 300  # 5 seconds at 60 FPS
+
+        if power_up_type == "slow":
+            # Slow down the ball
+            self.speed_x *= 0.6
+            self.speed_y *= 0.6
+            self.color = PURPLE
+        elif power_up_type == "antigravity":
+            # Reduce gravity effect
+            self.gravity = -0.05  # Slight upward drift
+            self.color = CYAN
+
+    def reset_power_ups(self):
+        self.gravity = self.original_gravity
+        self.color = RED
+        self.active_power_ups = []
 
 class Obstacle:
     def __init__(self):
@@ -147,14 +206,60 @@ class Obstacle:
             return True
         return False
 
+class PowerUp:
+    def __init__(self):
+        self.radius = 10
+        self.x = random.randint(50, SCREEN_WIDTH - 50)
+        self.y = random.randint(100, SCREEN_HEIGHT - 200)
+        self.speed_y = 2
+
+        # Choose a random power-up type
+        self.types = ["speed", "size", "slow", "multiball", "antigravity"]
+        self.type = random.choice(self.types)
+
+        # Set color based on type
+        if self.type == "speed":
+            self.color = YELLOW  # Speed boost
+        elif self.type == "size":
+            self.color = CYAN    # Paddle size increase
+        elif self.type == "slow":
+            self.color = PURPLE  # Ball slowdown
+        elif self.type == "multiball":
+            self.color = ORANGE  # Multi-ball
+        elif self.type == "antigravity":
+            self.color = WHITE   # Anti-gravity
+
+    def draw(self):
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
+        # Draw a small inner circle to make it look like a power-up
+        pygame.draw.circle(screen, BLACK, (int(self.x), int(self.y)), self.radius // 2)
+
+    def update(self):
+        self.y += self.speed_y
+
+    def is_out_of_bounds(self):
+        return self.y > SCREEN_HEIGHT + self.radius
+
+    def check_paddle_collision(self, player):
+        # Check if power-up collides with paddle
+        if (self.y + self.radius >= player.y and
+            self.y - self.radius <= player.y + player.height and
+            self.x >= player.x and
+            self.x <= player.x + player.width):
+            return True
+        return False
+
 def main():
     player = Player()
-    ball = Ball()
+    balls = [Ball()]
     obstacles = []
+    power_ups = []
     score = 0
     game_over = False
     obstacle_timer = 0
+    power_up_timer = 0
     obstacle_spawn_delay = 120  # Frames between obstacle spawns
+    power_up_spawn_delay = 300  # Frames between power-up spawns
 
     font = pygame.font.SysFont(None, 36)
 
@@ -171,31 +276,67 @@ def main():
                 if game_over and event.key == pygame.K_SPACE:
                     # Reset game
                     player = Player()
-                    ball = Ball()
+                    balls = [Ball()]
                     obstacles = []
+                    power_ups = []
                     score = 0
                     game_over = False
                     obstacle_timer = 0
+                    power_up_timer = 0
 
         # Get key states
         keys = pygame.key.get_pressed()
 
         if not game_over:
-            # Update game objects
+            # Update player
             player.update(keys)
-            ball.update()
 
-            # Check for paddle collision
-            if ball.check_paddle_collision(player):
-                score += 10
+            # Update balls
+            for ball in balls[:]:
+                ball.update()
+
+                # Check for paddle collision
+                if ball.check_paddle_collision(player):
+                    score += 10
+
+                # Check if ball is out of bounds
+                if ball.is_out_of_bounds():
+                    balls.remove(ball)
+                    if len(balls) == 0:
+                        game_over = True
 
             # Update obstacles
             for obstacle in obstacles[:]:
                 obstacle.update()
                 if obstacle.is_off_screen():
                     obstacles.remove(obstacle)
-                elif obstacle.check_ball_collision(ball):
-                    score += 5
+                else:
+                    for ball in balls:
+                        if obstacle.check_ball_collision(ball):
+                            score += 5
+
+            # Update power-ups
+            for power_up in power_ups[:]:
+                power_up.update()
+                if power_up.is_out_of_bounds():
+                    power_ups.remove(power_up)
+                elif power_up.check_paddle_collision(player):
+                    # Apply power-up effect
+                    if power_up.type == "speed" or power_up.type == "size":
+                        player.apply_power_up(power_up.type)
+                    elif power_up.type == "slow" or power_up.type == "antigravity":
+                        for ball in balls:
+                            ball.apply_power_up(power_up.type)
+                    elif power_up.type == "multiball" and len(balls) < 3:  # Limit to 3 balls max
+                        # Create a new ball at a random position
+                        new_ball = Ball(
+                            x=random.randint(50, SCREEN_WIDTH - 50),
+                            y=random.randint(100, 300)
+                        )
+                        balls.append(new_ball)
+
+                    power_ups.remove(power_up)
+                    score += 20
 
             # Spawn new obstacles
             obstacle_timer += 1
@@ -205,22 +346,36 @@ def main():
                 # Make obstacles spawn faster as score increases
                 obstacle_spawn_delay = max(60, 120 - (score // 100))
 
-            # Check if ball is out of bounds
-            if ball.is_out_of_bounds():
-                game_over = True
+            # Spawn new power-ups
+            power_up_timer += 1
+            if power_up_timer >= power_up_spawn_delay:
+                power_ups.append(PowerUp())
+                power_up_timer = 0
 
         # Draw everything
         screen.fill(BLACK)
 
         # Draw game objects
         player.draw()
-        ball.draw()
+        for ball in balls:
+            ball.draw()
         for obstacle in obstacles:
             obstacle.draw()
+        for power_up in power_ups:
+            power_up.draw()
 
         # Draw score
         score_text = font.render(f"Score: {score}", True, WHITE)
         screen.blit(score_text, (10, 10))
+
+        # Draw active power-ups
+        if player.active_power_ups:
+            power_up_text = font.render(f"Active: {', '.join(player.active_power_ups)}", True, WHITE)
+            screen.blit(power_up_text, (10, 50))
+
+        # Draw ball count
+        ball_text = font.render(f"Balls: {len(balls)}", True, WHITE)
+        screen.blit(ball_text, (SCREEN_WIDTH - 120, 10))
 
         # Draw game over message
         if game_over:
