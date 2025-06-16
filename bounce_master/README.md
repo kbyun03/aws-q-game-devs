@@ -13,31 +13,40 @@ A fun arcade-style game built with PyGame where you control a paddle to keep bal
   - Ball slowdown: Reduces the ball's speed
   - Multi-ball: Adds additional balls to the game
   - Anti-gravity: Makes the ball float upward slightly
-- Global leaderboard using AWS DynamoDB
+- Global leaderboard using AWS API Gateway, Lambda, and DynamoDB
 
 ## Requirements
 
 - Python 3.6+
 - PyGame
-- AWS account with appropriate permissions
-- Boto3 (AWS SDK for Python)
+- Requests library (for API calls)
+- AWS account (for deploying the leaderboard backend)
 
 ## Setup
 
-1. Make sure you have Python installed
-2. Install required packages:
-   ```
-   pip install pygame boto3
-   ```
-3. Configure AWS credentials:
-   ```
-   aws configure
-   ```
-   Or set up credentials in `~/.aws/credentials`
+### 1. Install Required Packages
 
-## Running the Game
-
+```bash
+pip install pygame requests
 ```
+
+### 2. Deploy the AWS Backend
+
+```bash
+# Make the deployment script executable
+chmod +x deploy.sh
+
+# Run the deployment script
+./deploy.sh
+```
+
+This will:
+- Create a CloudFormation stack with API Gateway, Lambda functions, and DynamoDB
+- Generate a config.py file with your API endpoint and API key
+
+### 3. Run the Game
+
+```bash
 python main.py
 ```
 
@@ -46,21 +55,22 @@ python main.py
 - **Left/Right Arrow Keys**: Move the paddle
 - **ESC**: Quit the game
 - **SPACE**: Restart after game over or submit score
+- **Enter**: Submit your name to the leaderboard
 
-## Leaderboard Setup
+## AWS Architecture
 
-The game uses AWS DynamoDB to store and retrieve leaderboard data. The table will be created automatically when you run the game for the first time if it doesn't exist.
+The game uses a serverless architecture for the leaderboard:
 
-Required AWS permissions:
-- dynamodb:CreateTable
-- dynamodb:DescribeTable
-- dynamodb:PutItem
-- dynamodb:Scan
+1. **API Gateway**: Provides HTTP endpoints for submitting scores and retrieving top scores
+2. **Lambda Functions**: Process requests and interact with DynamoDB
+3. **DynamoDB**: Stores player scores
+4. **API Key Authentication**: Secures the API endpoints
 
-## Game Architecture
+## Security Considerations
 
-- `main.py`: Main game loop and rendering
-- `leaderboard.py`: AWS DynamoDB integration for the global leaderboard
+- The API key is stored in the config.py file, which is generated during deployment
+- API Gateway enforces rate limiting to prevent abuse
+- No AWS credentials are stored in the game code
 
 ## Customization
 
@@ -69,3 +79,11 @@ You can modify various game parameters in the code:
 - Ball physics (gravity, bounce angles)
 - Power-up effects and duration
 - Obstacle spawn rate and behavior
+
+## Files
+
+- `main.py`: Main game loop and rendering
+- `leaderboard_api.py`: Client for interacting with the leaderboard API
+- `template.yaml`: CloudFormation template for AWS resources
+- `deploy.sh`: Deployment script for AWS resources
+- `config.py`: Generated configuration file with API details
